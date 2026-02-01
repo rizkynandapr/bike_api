@@ -4,50 +4,36 @@ import os
 
 app = FastAPI()
 
-# Fungsi untuk membaca data
-def get_data():
-    # Mengambil path file CSV yang berada di folder utama (root)
-    base_path = os.path.dirname(__file__)
-    file_path = os.path.join(base_path, "../data_cleaned.csv")
-    
-    if os.path.exists(file_path):
-        df = pd.read_csv(file_path)
+# Lokasi file CSV hasil olahan Colab
+CSV_PATH = os.path.join(os.path.dirname(__file__), 'data_cleaned.csv')
+
+def load_data():
+    """Membaca CSV dan mengonversinya ke format JSON (List of Dict)"""
+    if os.path.exists(CSV_PATH):
+        df = pd.read_csv(CSV_PATH)
         return df.to_dict(orient='records')
     return []
 
-# Kita simpan ke dalam variabel global agar bisa dimanipulasi (dihapus)
-data_store = get_data()
+# Memasukkan data ke memori saat API pertama kali dijalankan
+data_store = load_data()
 
 @app.get("/")
 def home():
-    return {
-        "message": "Bikeshare API Berhasil Berjalan",
-        "endpoints": {
-            "lihat_data": "/data",
-            "hapus_data": "/data/{index}"
-        }
-    }
+    return {"message": "Bikeshare API Aktif", "menu": "/data"}
 
-# ENDPOINT UNTUK MENAMPILKAN SELURUH DATA
 @app.get("/data")
 def show_all_data():
+    """Menampilkan isi CSV secara langsung"""
     if not data_store:
-        return {"message": "Data kosong atau file CSV tidak ditemukan"}
+        # Jika muncul pesan ini, periksa apakah file data_cleaned.csv sudah di-push ke GitHub
+        return {"error": "File CSV tidak ditemukan atau kosong di server"}
     
-    return {
-        "total_entry": len(data_store),
-        "data": data_store
-    }
+    return data_store
 
-# ENDPOINT UNTUK MENGHAPUS DATA
 @app.delete("/data/{index}")
 def delete_entry(index: int):
+    """Menghapus data sementara di memori"""
     if 0 <= index < len(data_store):
-        item_dihapus = data_store.pop(index)
-        return {
-            "message": f"Data pada index {index} berhasil dihapus",
-            "data_terhapus": item_dihapus,
-            "sisa_data": len(data_store)
-        }
-    else:
-        raise HTTPException(status_code=404, detail="Index tidak ditemukan")
+        removed = data_store.pop(index)
+        return {"status": "success", "data_terhapus": removed}
+    raise HTTPException(status_code=404, detail="Index tidak ditemukan")
