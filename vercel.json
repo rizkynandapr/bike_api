@@ -1,5 +1,15 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "bike/main.py" }
+  "devCommand": "uvicorn bike:app --host 0.0.0.0 --port 3000",
+  "builds": [
+    {
+      "src": "bike.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "bike.py"
+    }
   ]
 }
