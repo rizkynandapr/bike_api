@@ -4,49 +4,61 @@ import os
 
 app = FastAPI()
 
-# Langsung definisikan nama file jika berada di folder yang sama (root)
+# Pengaturan lokasi file CSV
 CSV_FILE = 'data_cleaned.csv'
 
-def load_data():
-    """Membaca CSV dan mengonversinya ke format JSON"""
+def load_initial_data():
     if os.path.exists(CSV_FILE):
         df = pd.read_csv(CSV_FILE)
         return df.to_dict(orient='records')
     return []
 
-# Memasukkan data ke memori
-data_store = load_data()
+# State management dalam memori (serverless)
+data_store = load_initial_data()
+deleted_history = [] # Variabel untuk menampung data yang dihapus
 
 @app.get("/")
-def home():
-    # Menampilkan menu lengkap di halaman utama
+def welcome_page():
     return {
-        "message": "Bikeshare API Aktif",
-        "menu": {
-            "lihat_data": "/data",
-            "hapus_data": "/data/{index}",
+        "message": "Bikeshare API",
+        "status": "Online",
+        "menu_navigasi": {
+            "lihat_semua_data": "/tampilkan-data",
+            "cek_riwayat_hapus": "/riwayat-hapus",
             "dokumentasi_interaktif": "/docs"
         }
     }
 
-@app.get("/data")
-def show_all_data():
-    """Menampilkan isi CSV secara langsung"""
-    if not data_store:
-        return {
-            "error": "File CSV tidak ditemukan atau kosong",
-            "petunjuk": "Pastikan file data_cleaned.csv sudah ada di GitHub"
-        }
-    return data_store
+@app.get("/tampilkan-data")
+def get_cleaned_trips():
+    """Menampilkan seluruh entry data setelah handling outlier"""
+    return {
+        "keterangan": "Data Aktif",
+        "jumlah_data": len(data_store),
+        "data": data_store
+    }
 
-@app.delete("/data/{index}")
-def delete_entry(index: int):
-    """Menghapus data sementara di memori"""
+@app.get("/riwayat-hapus")
+def get_deleted_log():
+    """Menampilkan data apa saja yang sudah dihapus selama session ini"""
+    return {
+        "keterangan": "Riwayat Data Terhapus",
+        "jumlah_terhapus": len(deleted_history),
+        "data": deleted_history
+    }
+
+@app.delete("/hapus-data/{index}")
+def remove_trip_entry(index: int):
+    """Menghapus entry data dan memindahkannya ke riwayat hapus"""
     if 0 <= index < len(data_store):
-        removed = data_store.pop(index)
+        # Proses pemindahan data
+        removed_item = data_store.pop(index)
+        deleted_history.append(removed_item)
+        
         return {
-            "status": "success", 
-            "message": f"Data index {index} berhasil dihapus",
-            "data_terhapus": removed
+            "status": "Berhasil Dihapus",
+            "item": removed_item,
+            "pesan": "Data telah dipindahkan ke /riwayat-hapus"
         }
-    raise HTTPException(status_code=404, detail="Index tidak ditemukan")
+    else:
+        raise HTTPException(status_code=404, detail="Index data tidak ditemukan")
